@@ -3,19 +3,42 @@ import React, { useState, useEffect } from "react";
 const Home = () => {
 	const [task, setTask] = useState("");
 	const [list, setList] = useState([]);
-	const user = "raymon_burgos"; // llave usuario creado
+	const user = "raymon_burgos"; 
+
+	
+	const createUser = async () => {
+		try {
+			const resp = await fetch(`https://playground.4geeks.com/todo/users/${user}`, {
+				method: "POST", 
+				headers: { "Content-Type": "application/json" }
+			});
+			if (resp.ok) {
+				console.log("--- Usuario creado con éxito ---");
+				await getTasks(); 
+			}
+		} catch (error) {
+			console.error("Error al crear usuario:", error);
+		}
+	};
 
 	
 	const getTasks = async () => {
 		try {
 			const resp = await fetch(`https://playground.4geeks.com/todo/users/${user}`);
+			
+			if (resp.status === 404) {
+				console.warn("El usuario no existe en la API. Creándolo...");
+				await createUser(); 
+				return;
+			}
+
 			if (resp.ok) {
 				const data = await resp.json();
 				setList(data.todos);
-				console.log("--- [GET] Lista sincronizada desde el servidor ---");
+				console.log("--- Tareas cargadas desde el servidor ---");
 			}
 		} catch (error) {
-			console.error("Error al obtener tareas:", error);
+			console.error("Error en la conexión:", error);
 		}
 	};
 
@@ -24,14 +47,13 @@ const Home = () => {
 		if (e.key === "Enter" && task.trim() !== "") {
 			try {
 				const resp = await fetch(`https://playground.4geeks.com/todo/todos/${user}`, {
-					method: "POST",
+					method: "POST", // Método POST de la sección Todo operations
 					body: JSON.stringify({ label: task, is_done: false }),
 					headers: { "Content-Type": "application/json" }
 				});
 				if (resp.ok) {
-					setTask(""); 
-					await getTasks(); 
-					console.log("--- [POST] Nueva tarea guardada en la API ---");
+					setTask("");
+					await getTasks();
 				}
 			} catch (error) {
 				console.error("Error al añadir:", error);
@@ -43,19 +65,16 @@ const Home = () => {
 	const toggleTask = async (item) => {
 		try {
 			const resp = await fetch(`https://playground.4geeks.com/todo/todos/${item.id}`, {
-				method: "PUT",
+				method: "PUT", 
 				body: JSON.stringify({ 
 					label: item.label, 
 					is_done: !item.is_done 
 				}),
 				headers: { "Content-Type": "application/json" }
 			});
-			if (resp.ok) {
-				await getTasks();
-				console.log("--- [PUT] Estado de tarea actualizado ---");
-			}
+			if (resp.ok) await getTasks();
 		} catch (error) {
-			console.error("Error al actualizar estado:", error);
+			console.error("Error al actualizar:", error);
 		}
 	};
 
@@ -63,12 +82,9 @@ const Home = () => {
 	const deleteTask = async (id) => {
 		try {
 			const resp = await fetch(`https://playground.4geeks.com/todo/todos/${id}`, {
-				method: "DELETE"
+				method: "DELETE" // Método DELETE individual de la sección Todo operations
 			});
-			if (resp.ok) {
-				await getTasks();
-				console.log("--- [DELETE] Tarea eliminada del servidor ---");
-			}
+			if (resp.ok) await getTasks();
 		} catch (error) {
 			console.error("Error al borrar:", error);
 		}
@@ -77,17 +93,15 @@ const Home = () => {
 	
 	const clearAllTasks = async () => {
 		try {
-			const respDelete = await fetch(`https://playground.4geeks.com/todo/users/${user}`, {
-				method: "DELETE"
+			const resp = await fetch(`https://playground.4geeks.com/todo/users/${user}`, {
+				method: "DELETE" // Método DELETE de User operations para limpiar todo
 			});
-			if (respDelete.ok) {
-				
-				await fetch(`https://playground.4geeks.com/todo/users/${user}`, { method: "POST" });
+			if (resp.ok) {
 				setList([]);
-				console.warn("--- [LIMPIEZA] Usuario reiniciado con éxito ---");
+				console.warn("Usuario eliminado. Se recreará al refrescar o añadir tarea.");
 			}
 		} catch (error) {
-			console.error("Error en limpieza total:", error);
+			console.error("Error en limpieza:", error);
 		}
 	};
 
@@ -114,7 +128,7 @@ const Home = () => {
 						</li>
 					) : (
 						list.map((item) => (
-							<li key={item.id} className="list-group-item d-flex justify-content-between align-items-center task-item">
+							<li key={item.id} className="list-group-item d-flex justify-content-between align-items-center">
 								<div className="d-flex align-items-center">
 									<input 
 										type="checkbox" 
@@ -129,22 +143,14 @@ const Home = () => {
 										{item.label}
 									</span>
 								</div>
-								<button 
-									className="btn btn-outline-danger btn-sm border-0 opacity-50" 
-									onClick={() => deleteTask(item.id)}
-								>
-									✕
-								</button>
+								<button className="btn btn-outline-danger btn-sm border-0" onClick={() => deleteTask(item.id)}>✕</button>
 							</li>
 						))
 					)}
 				</ul>
-				<div className="card-footer d-flex justify-content-between align-items-center text-muted small bg-white py-3">
+				<div className="card-footer d-flex justify-content-between align-items-center text-muted small bg-white">
 					<span>{list.filter(t => !t.is_done).length} tareas pendientes</span>
-					<button 
-						className="btn btn-link btn-sm text-danger text-decoration-none" 
-						onClick={clearAllTasks}
-					>
+					<button className="btn btn-link btn-sm text-danger text-decoration-none" onClick={clearAllTasks}>
 						Borrar todo
 					</button>
 				</div>
