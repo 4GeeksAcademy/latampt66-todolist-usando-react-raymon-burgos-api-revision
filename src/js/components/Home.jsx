@@ -1,44 +1,41 @@
 import React, { useState, useEffect } from "react";
 
 const Home = () => {
+	const [userInput, setUserInput] = useState("raymon_burgos"); // Nombre por defecto
 	const [task, setTask] = useState("");
 	const [list, setList] = useState([]);
-	const user = "raymon_burgos"; 
 
 	
 	const createUser = async () => {
 		try {
-			const resp = await fetch(`https://playground.4geeks.com/todo/users/${user}`, {
-				method: "POST", 
+			const resp = await fetch(`https://playground.4geeks.com/todo/users/${userInput}`, {
+				method: "POST", // Operación POST de 'User operations'
 				headers: { "Content-Type": "application/json" }
 			});
 			if (resp.ok) {
-				console.log("--- Usuario creado con éxito ---");
+				alert(`Usuario ${userInput} creado o verificado`);
 				await getTasks(); 
 			}
 		} catch (error) {
-			console.error("Error al crear usuario:", error);
+			console.error("Error al crear:", error);
 		}
 	};
 
 	
 	const getTasks = async () => {
 		try {
-			const resp = await fetch(`https://playground.4geeks.com/todo/users/${user}`);
-			
+			const resp = await fetch(`https://playground.4geeks.com/todo/users/${userInput}`);
 			if (resp.status === 404) {
-				console.warn("El usuario no existe en la API. Creándolo...");
-				await createUser(); 
+				setList([]); // Si no existe, limpiamos la lista visualmente
+				console.warn("El usuario no existe en la API.");
 				return;
 			}
-
 			if (resp.ok) {
 				const data = await resp.json();
-				setList(data.todos);
-				console.log("--- Tareas cargadas desde el servidor ---");
+				setList(data.todos); // Traemos sus tareas específicas
 			}
 		} catch (error) {
-			console.error("Error en la conexión:", error);
+			console.error("Error:", error);
 		}
 	};
 
@@ -46,8 +43,8 @@ const Home = () => {
 	const addTask = async (e) => {
 		if (e.key === "Enter" && task.trim() !== "") {
 			try {
-				const resp = await fetch(`https://playground.4geeks.com/todo/todos/${user}`, {
-					method: "POST", // Método POST de la sección Todo operations
+				const resp = await fetch(`https://playground.4geeks.com/todo/todos/${userInput}`, {
+					method: "POST",
 					body: JSON.stringify({ label: task, is_done: false }),
 					headers: { "Content-Type": "application/json" }
 				});
@@ -56,54 +53,12 @@ const Home = () => {
 					await getTasks();
 				}
 			} catch (error) {
-				console.error("Error al añadir:", error);
+				console.error("Error:", error);
 			}
 		}
 	};
 
-	
-	const toggleTask = async (item) => {
-		try {
-			const resp = await fetch(`https://playground.4geeks.com/todo/todos/${item.id}`, {
-				method: "PUT", 
-				body: JSON.stringify({ 
-					label: item.label, 
-					is_done: !item.is_done 
-				}),
-				headers: { "Content-Type": "application/json" }
-			});
-			if (resp.ok) await getTasks();
-		} catch (error) {
-			console.error("Error al actualizar:", error);
-		}
-	};
-
-	
-	const deleteTask = async (id) => {
-		try {
-			const resp = await fetch(`https://playground.4geeks.com/todo/todos/${id}`, {
-				method: "DELETE" // Método DELETE individual de la sección Todo operations
-			});
-			if (resp.ok) await getTasks();
-		} catch (error) {
-			console.error("Error al borrar:", error);
-		}
-	};
-
-	
-	const clearAllTasks = async () => {
-		try {
-			const resp = await fetch(`https://playground.4geeks.com/todo/users/${user}`, {
-				method: "DELETE" // Método DELETE de User operations para limpiar todo
-			});
-			if (resp.ok) {
-				setList([]);
-				console.warn("Usuario eliminado. Se recreará al refrescar o añadir tarea.");
-			}
-		} catch (error) {
-			console.error("Error en limpieza:", error);
-		}
-	};
+    
 
 	useEffect(() => {
 		getTasks();
@@ -111,7 +66,21 @@ const Home = () => {
 
 	return (
 		<div className="container mt-5">
-			<h1 className="text-center display-1 text-danger opacity-25">tareas</h1>
+			<h1 className="text-center display-1 text-danger opacity-25">Todo App</h1>
+			
+			{/* --- NUEVA SECCIÓN: GESTIÓN DE USUARIOS --- */}
+			<div className="d-flex mb-4 shadow-sm p-3 bg-light rounded">
+				<input 
+					type="text" 
+					className="form-control me-2" 
+					placeholder="Nombre de usuario..."
+					value={userInput}
+					onChange={(e) => setUserInput(e.target.value)}
+				/>
+				<button className="btn btn-primary me-2" onClick={createUser}>Crear</button>
+				<button className="btn btn-secondary" onClick={getTasks}>Cargar</button>
+			</div>
+
 			<div className="card shadow">
 				<input
 					type="text"
@@ -124,36 +93,17 @@ const Home = () => {
 				<ul className="list-group list-group-flush">
 					{list.length === 0 ? (
 						<li className="list-group-item text-muted text-center py-4">
-							No hay tareas, añade una nueva
+							Usuario "{userInput}" sin tareas pendientes.
 						</li>
 					) : (
 						list.map((item) => (
 							<li key={item.id} className="list-group-item d-flex justify-content-between align-items-center">
-								<div className="d-flex align-items-center">
-									<input 
-										type="checkbox" 
-										className="form-check-input me-3"
-										checked={item.is_done}
-										onChange={() => toggleTask(item)}
-									/>
-									<span style={{ 
-										textDecoration: item.is_done ? "line-through" : "none",
-										color: item.is_done ? "#adb5bd" : "black"
-									}}>
-										{item.label}
-									</span>
-								</div>
+								<span>{item.label}</span>
 								<button className="btn btn-outline-danger btn-sm border-0" onClick={() => deleteTask(item.id)}>✕</button>
 							</li>
 						))
 					)}
 				</ul>
-				<div className="card-footer d-flex justify-content-between align-items-center text-muted small bg-white">
-					<span>{list.filter(t => !t.is_done).length} tareas pendientes</span>
-					<button className="btn btn-link btn-sm text-danger text-decoration-none" onClick={clearAllTasks}>
-						Borrar todo
-					</button>
-				</div>
 			</div>
 		</div>
 	);
